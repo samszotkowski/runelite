@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Jos <Malevolentdev@gmail.com>
+ * Copyright (c) 2024, Adam <Adam@sigterm.info>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,14 +22,57 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.runelite.client.plugins.statusbars.config;
+package net.runelite.api;
 
-public enum BarMode
+import java.lang.reflect.Field;
+import java.util.HashSet;
+import java.util.Set;
+import lombok.SneakyThrows;
+import net.runelite.api.clan.ClanID;
+import static org.junit.Assert.fail;
+import org.junit.Test;
+
+public class DistinctIdTest
 {
-	DISABLED,
-	HITPOINTS,
-	PRAYER,
-	RUN_ENERGY,
-	SPECIAL_ATTACK,
-	;
+	@Test
+	public void testUnique()
+	{
+		duplicateCheck(
+			// disabled as a few plugins rely on the dups
+			//AnimationID.class,
+			ClanID.class,
+			EnumID.class,
+			FontID.class,
+			GraphicID.class,
+			HitsplatID.class,
+			KeyCode.class,
+			ParamID.class,
+			ScriptID.class,
+			SettingID.class,
+			SkullIcon.class,
+			SoundEffectID.class,
+			SpriteID.class,
+			StructID.class,
+			VarClientInt.class,
+			VarClientStr.class,
+			VarPlayer.class,
+			Varbits.class
+		);
+	}
+
+	@SneakyThrows
+	private void duplicateCheck(Class<?>... classes)
+	{
+		for (Class<?> clazz : classes)
+		{
+			Set<Integer> seen = new HashSet<>();
+			for (Field f : clazz.getDeclaredFields())
+			{
+				if (!seen.add(f.getInt(null)))
+				{
+					fail("field with duplicate value: " + clazz.getSimpleName() + "." + f.getName());
+				}
+			}
+		}
+	}
 }
