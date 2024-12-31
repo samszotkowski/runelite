@@ -25,15 +25,20 @@
  */
 package net.runelite.client.plugins.herbiboars;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.LoggerContext;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.inject.Provides;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 import javax.inject.Inject;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -48,13 +53,16 @@ import static net.runelite.api.ObjectID.ROCK_30522;
 import net.runelite.api.TileObject;
 import net.runelite.api.Varbits;
 import net.runelite.api.coords.WorldPoint;
+import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.GameObjectDespawned;
 import net.runelite.api.events.GameObjectSpawned;
 import net.runelite.api.events.GameStateChanged;
+import net.runelite.api.events.GameTick;
 import net.runelite.api.events.GroundObjectDespawned;
 import net.runelite.api.events.GroundObjectSpawned;
 import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.events.VarbitChanged;
+import net.runelite.client.RuneLite;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
@@ -63,6 +71,11 @@ import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.Text;
 import org.apache.commons.lang3.ArrayUtils;
+import ch.qos.logback.classic.encoder.PatternLayoutEncoder;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.rolling.RollingFileAppender;
+import ch.qos.logback.core.rolling.TimeBasedRollingPolicy;
+import org.slf4j.LoggerFactory;
 
 @PluginDescriptor(
 	name = "Herbiboar",
@@ -73,6 +86,10 @@ import org.apache.commons.lang3.ArrayUtils;
 @Getter
 public class HerbiboarPlugin extends Plugin
 {
+	private static final String BASE_DIRECTORY = RuneLite.RUNELITE_DIR + "/herbilog/";
+	private Logger herbiLogger;
+	private boolean canLoad = false;
+
 	private static final List<WorldPoint> END_LOCATIONS = ImmutableList.of(
 		new WorldPoint(3693, 3798, 0),
 		new WorldPoint(3702, 3808, 0),
@@ -139,6 +156,7 @@ public class HerbiboarPlugin extends Plugin
 	 * Sequence of herbiboar spots searched along the current trail
 	 */
 	private final List<HerbiboarSearchSpot> currentPath = Lists.newArrayList();
+	private final Pattern failMessage = Pattern.compile("The creature has successfully confused you.*");
 
 	private boolean inHerbiboarArea;
 	private TrailToSpot nextTrail;
@@ -146,6 +164,7 @@ public class HerbiboarPlugin extends Plugin
 	private int finishId;
 
 	private boolean started;
+	private boolean finished = false;
 	private WorldPoint startPoint;
 	private HerbiboarStart startSpot;
 
@@ -219,21 +238,16 @@ public class HerbiboarPlugin extends Plugin
 			}
 		}
 
-		finishId = client.getVarbitValue(Varbits.HB_FINISH);
+		finishId = Math.max(finishId, client.getVarbitValue(Varbits.HB_FINISH));
 
 		// The started varbit doesn't get set until the first spot of the rotation has been searched
 		// so we need to use the current group as an indicator of the rotation being started
 		started = client.getVarbitValue(Varbits.HB_STARTED) > 0 || currentGroup != null;
-		boolean finished = !pathActive && started;
+		finished = !pathActive && started;
 
 		if (!wasStarted && started)
 		{
 			startSpot = HerbiboarStart.from(startPoint);
-		}
-
-		if (finished)
-		{
-			resetTrailData();
 		}
 	}
 
@@ -254,13 +268,35 @@ public class HerbiboarPlugin extends Plugin
 		}
 	}
 
+	@Subscribe
+	public void onChatMessage(ChatMessage event)
+	{
+		if (failMessage.matcher(event.getMessage()).matches()) {
+			finishId = 999;
+		}
+	}
+
 	private void resetTrailData()
 	{
 		log.debug("Reset trail data");
+		if (startSpot != null) {
+			List<String> route = new ArrayList<>();
+			route.add(startSpot.name());
+			for (HerbiboarSearchSpot path : currentPath) {
+				route.add(path.toString());
+			}
+			if (finishId == 999) {
+				route.add("DEAD_END");
+			} else {
+				route.add("END_" + finishId);
+			}
+			herbiLogger.info(route.toString());
+		}
 		shownTrails.clear();
 		currentPath.clear();
 		nextTrail = null;
 		currentGroup = null;
+		finished = false;
 		finishId = 0;
 		started = false;
 		startPoint = null;
@@ -288,8 +324,22 @@ public class HerbiboarPlugin extends Plugin
 				clearCache();
 				inHerbiboarArea = checkArea();
 				break;
+			case LOGGED_IN:
+				canLoad = true;
 			default:
 				break;
+		}
+	}
+
+	@Subscribe
+	public void onGameTick(GameTick tick) {
+		if (canLoad) {
+			herbiLogger = setupLogger();
+			canLoad = false;
+		}
+		if (finished)
+		{
+			resetTrailData();
 		}
 	}
 
@@ -384,5 +434,40 @@ public class HerbiboarPlugin extends Plugin
 	List<WorldPoint> getEndLocations()
 	{
 		return END_LOCATIONS;
+	}
+
+	private Logger setupLogger() {
+		LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
+
+		PatternLayoutEncoder encoder = new PatternLayoutEncoder();
+		encoder.setContext(context);
+		encoder.setPattern("%d{HH:mm:ss} %msg%n");
+		encoder.start();
+
+		String directory = BASE_DIRECTORY + client.getLocalPlayer().getName() + "/";
+
+		RollingFileAppender<ILoggingEvent> appender = new RollingFileAppender<>();
+		appender.setFile(directory + "latest.log");
+		appender.setAppend(true);
+		appender.setEncoder(encoder);
+		appender.setContext(context);
+
+		TimeBasedRollingPolicy<ILoggingEvent> logFilePolicy = new TimeBasedRollingPolicy<>();
+		logFilePolicy.setContext(context);
+		logFilePolicy.setParent(appender);
+		logFilePolicy.setFileNamePattern(directory + "log_%d{yyyy-MM-dd}.log");
+		logFilePolicy.setMaxHistory(30);
+		logFilePolicy.start();
+
+		appender.setRollingPolicy(logFilePolicy);
+		appender.start();
+
+		Logger logger = context.getLogger("HerbiboarLogger");
+		logger.detachAndStopAllAppenders();
+		logger.setAdditive(false);
+		logger.setLevel(Level.INFO);
+		logger.addAppender(appender);
+
+		return logger;
 	}
 }
