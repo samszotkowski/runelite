@@ -94,6 +94,7 @@ import net.runelite.api.events.ItemContainerChanged;
 import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.events.NpcDespawned;
 import net.runelite.api.events.PostClientTick;
+import net.runelite.api.events.ScriptPreFired;
 import net.runelite.api.events.WidgetLoaded;
 import net.runelite.api.widgets.InterfaceID;
 import net.runelite.client.account.AccountSession;
@@ -319,6 +320,12 @@ public class LootTrackerPlugin extends Plugin
 	);
 	private static final String IMPLING_CATCH_MESSAGE = "You manage to catch the impling and acquire some loot.";
 
+	// Barbarian Assault gambles
+	private static final List<String> BA_GAMBLES = List.of("Barbarian Assault Low Gamble", "Barbarian Assault Medium Gamble", "Barbarian Assault High Gamble");
+	private static final List<String> BA_PRECEDING_MESBOXES = List.of("You've got...", "Hmmm, not bad, it's...", "You've won...");
+	private static final int BA_LOBBY_REGION = 10039;
+	private static final int BA_REWARD_MENU_SCRIPT_ID = 1368;
+
 	// Raids
 	private static final String CHAMBERS_OF_XERIC = "Chambers of Xeric";
 	private static final String THEATRE_OF_BLOOD = "Theatre of Blood";
@@ -376,6 +383,8 @@ public class LootTrackerPlugin extends Plugin
 	private NavigationButton navButton;
 
 	private boolean chestLooted;
+	private String baLootInProgress;
+	private String lastMesbox;
 	private boolean lastLoadingIntoInstance;
 	private String lastPickpocketTarget;
 	private int lastNpcTypeTarget;
@@ -626,6 +635,7 @@ public class LootTrackerPlugin extends Plugin
 		clientToolbar.removeNavigation(navButton);
 		lootTrackerClient.setUuid(null);
 		chestLooted = false;
+		baLootInProgress = null;
 	}
 
 	@Subscribe
@@ -1176,6 +1186,21 @@ public class LootTrackerPlugin extends Plugin
 		{
 			onInvChange(collectInvItems(LootRecordType.EVENT, "Unsired"));
 		}
+
+		if (regionID == BA_LOBBY_REGION
+			&& chatType == ChatMessageType.MESBOX
+			&& BA_PRECEDING_MESBOXES.contains(lastMesbox)
+			&& baLootInProgress != null)
+		{
+			onInvChange(collectInvAndGroundItems(LootRecordType.EVENT, baLootInProgress));
+			baLootInProgress = null;
+		}
+
+		// this needs to happen after the Barb Assault block
+		if (event.getType() == ChatMessageType.MESBOX)
+		{
+			lastMesbox = message;
+		}
 	}
 
 	@Subscribe
@@ -1217,6 +1242,28 @@ public class LootTrackerPlugin extends Plugin
 		}
 
 		resetEvent();
+	}
+
+	@Subscribe
+	public void onScriptPreFired(ScriptPreFired event)
+	{
+		if (event.getScriptId() != BA_REWARD_MENU_SCRIPT_ID)
+		{
+			return;
+		}
+
+		baLootInProgress = null;
+		Object[] args = event.getScriptEvent().getArguments();
+		boolean enoughPoints = (int) args[4] == 1;
+		boolean enoughQueens = (int) args[5] == 1;
+		if (enoughPoints && enoughQueens)
+		{
+			int menuPosition = (int) args[3];
+			if (menuPosition == 14 || menuPosition == 15 || menuPosition == 16)
+			{
+				baLootInProgress = BA_GAMBLES.get(menuPosition - 14);
+			}
+		}
 	}
 
 	@Subscribe
