@@ -382,7 +382,7 @@ public class LootTrackerPlugin extends Plugin
 	private NavigationButton navButton;
 
 	private boolean chestLooted;
-	private String baLootInProgress;
+	private String baGambleInProgress;
 	private String lastDialogOrMesbox;
 	private boolean lastLoadingIntoInstance;
 	private String lastPickpocketTarget;
@@ -634,7 +634,7 @@ public class LootTrackerPlugin extends Plugin
 		clientToolbar.removeNavigation(navButton);
 		lootTrackerClient.setUuid(null);
 		chestLooted = false;
-		baLootInProgress = null;
+		baGambleInProgress = null;
 	}
 
 	@Subscribe
@@ -651,10 +651,14 @@ public class LootTrackerPlugin extends Plugin
 	public void onGameStateChanged(final GameStateChanged event)
 	{
 		final boolean inInstancedRegion = client.isInInstancedRegion();
-		if (event.getGameState() == GameState.LOADING && inInstancedRegion != lastLoadingIntoInstance)
+		if (event.getGameState() == GameState.LOADING)
 		{
-			lastLoadingIntoInstance = inInstancedRegion;
-			chestLooted = false;
+			baGambleInProgress = null;
+			if (inInstancedRegion != lastLoadingIntoInstance)
+			{
+				lastLoadingIntoInstance = inInstancedRegion;
+				chestLooted = false;
+			}
 		}
 	}
 
@@ -1241,14 +1245,14 @@ public class LootTrackerPlugin extends Plugin
 			return;
 		}
 
-		baLootInProgress = null;
+		baGambleInProgress = null;
 		Object[] args = event.getScriptEvent().getArguments();
 		int menuPosition = (int) args[3];
 		boolean enoughPoints = (int) args[4] == 1;
 		boolean enoughQueens = (int) args[5] == 1;
 		if (enoughPoints && enoughQueens && (menuPosition == 14 || menuPosition == 15 || menuPosition == 16))
 		{
-			baLootInProgress = BA_GAMBLES.get(menuPosition - 14);
+			baGambleInProgress = BA_GAMBLES.get(menuPosition - 14);
 		}
 	}
 
@@ -1377,10 +1381,10 @@ public class LootTrackerPlugin extends Plugin
 		}
 		else if (event.getMenuAction().getId() == MenuAction.WIDGET_CONTINUE.getId()
 			&& lastDialogOrMesbox != null && BA_PRECEDING_DIALOG.contains(lastDialogOrMesbox)
-			&& baLootInProgress != null)
+			&& baGambleInProgress != null)
 		{
-				onInvChange(collectInvAndGroundItems(LootRecordType.EVENT, baLootInProgress));
-				baLootInProgress = null;
+				onInvChange(collectInvAndGroundItems(LootRecordType.EVENT, baGambleInProgress));
+				baGambleInProgress = null;
 		}
 	}
 
