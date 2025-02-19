@@ -81,6 +81,7 @@ import net.runelite.api.NPCComposition;
 import net.runelite.api.NpcID;
 import net.runelite.api.ObjectID;
 import net.runelite.api.Player;
+import net.runelite.api.ScriptID;
 import net.runelite.api.Skill;
 import net.runelite.api.SpriteID;
 import net.runelite.api.Tile;
@@ -323,7 +324,6 @@ public class LootTrackerPlugin extends Plugin
 	// Barbarian Assault gambles
 	private static final List<String> BA_GAMBLES = List.of("Barbarian Assault Low Gamble", "Barbarian Assault Medium Gamble", "Barbarian Assault High Gamble");
 	private static final List<String> BA_PRECEDING_DIALOG = List.of("You've got...", "Hmmm, not bad, it's...", "You've won...");
-	private static final int BA_REWARD_MENU_SCRIPT_ID = 1368;
 
 	// Raids
 	private static final String CHAMBERS_OF_XERIC = "Chambers of Xeric";
@@ -1240,7 +1240,7 @@ public class LootTrackerPlugin extends Plugin
 	@Subscribe
 	public void onScriptPreFired(ScriptPreFired event)
 	{
-		if (event.getScriptId() != BA_REWARD_MENU_SCRIPT_ID)
+		if (event.getScriptId() != ScriptID.BARB_ASSAULT_REWARD_SELECT)
 		{
 			return;
 		}

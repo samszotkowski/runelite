@@ -485,4 +485,7 @@ public final class ScriptID
 
 	@ScriptArguments(integer = 7)
 	public static final int SEED_VAULT_BUILD = 2819;
+
+	@ScriptArguments(integer = 6)
+	public static final int BARB_ASSAULT_REWARD_SELECT = 1368;
 }
