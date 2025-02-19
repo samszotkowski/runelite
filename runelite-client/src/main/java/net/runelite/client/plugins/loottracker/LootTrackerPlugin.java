@@ -322,8 +322,7 @@ public class LootTrackerPlugin extends Plugin
 
 	// Barbarian Assault gambles
 	private static final List<String> BA_GAMBLES = List.of("Barbarian Assault Low Gamble", "Barbarian Assault Medium Gamble", "Barbarian Assault High Gamble");
-	private static final List<String> BA_PRECEDING_MESBOXES = List.of("You've got...", "Hmmm, not bad, it's...", "You've won...");
-	private static final int BA_LOBBY_REGION = 10039;
+	private static final List<String> BA_PRECEDING_DIALOG = List.of("You've got...", "Hmmm, not bad, it's...", "You've won...");
 	private static final int BA_REWARD_MENU_SCRIPT_ID = 1368;
 
 	// Raids
@@ -384,7 +383,7 @@ public class LootTrackerPlugin extends Plugin
 
 	private boolean chestLooted;
 	private String baLootInProgress;
-	private String lastMesbox;
+	private String lastDialogOrMesbox;
 	private boolean lastLoadingIntoInstance;
 	private String lastPickpocketTarget;
 	private int lastNpcTypeTarget;
@@ -1011,7 +1010,7 @@ public class LootTrackerPlugin extends Plugin
 	{
 		var chatType = event.getType();
 		if (chatType != ChatMessageType.GAMEMESSAGE && chatType != ChatMessageType.SPAM
-			&& chatType != ChatMessageType.MESBOX)
+			&& chatType != ChatMessageType.MESBOX && chatType != ChatMessageType.DIALOG)
 		{
 			return;
 		}
@@ -1187,19 +1186,9 @@ public class LootTrackerPlugin extends Plugin
 			onInvChange(collectInvItems(LootRecordType.EVENT, "Unsired"));
 		}
 
-		if (regionID == BA_LOBBY_REGION
-			&& chatType == ChatMessageType.MESBOX
-			&& BA_PRECEDING_MESBOXES.contains(lastMesbox)
-			&& baLootInProgress != null)
+		if (event.getType() == ChatMessageType.DIALOG || event.getType() == ChatMessageType.MESBOX)
 		{
-			onInvChange(collectInvAndGroundItems(LootRecordType.EVENT, baLootInProgress));
-			baLootInProgress = null;
-		}
-
-		// this needs to happen after the Barb Assault block
-		if (event.getType() == ChatMessageType.MESBOX)
-		{
-			lastMesbox = message;
+			lastDialogOrMesbox = message;
 		}
 	}
 
@@ -1254,15 +1243,12 @@ public class LootTrackerPlugin extends Plugin
 
 		baLootInProgress = null;
 		Object[] args = event.getScriptEvent().getArguments();
+		int menuPosition = (int) args[3];
 		boolean enoughPoints = (int) args[4] == 1;
 		boolean enoughQueens = (int) args[5] == 1;
-		if (enoughPoints && enoughQueens)
+		if (enoughPoints && enoughQueens && (menuPosition == 14 || menuPosition == 15 || menuPosition == 16))
 		{
-			int menuPosition = (int) args[3];
-			if (menuPosition == 14 || menuPosition == 15 || menuPosition == 16)
-			{
-				baLootInProgress = BA_GAMBLES.get(menuPosition - 14);
-			}
+			baLootInProgress = BA_GAMBLES.get(menuPosition - 14);
 		}
 	}
 
@@ -1388,6 +1374,13 @@ public class LootTrackerPlugin extends Plugin
 					}
 				}));
 			}
+		}
+		else if (event.getMenuAction().getId() == MenuAction.WIDGET_CONTINUE.getId()
+			&& lastDialogOrMesbox != null && BA_PRECEDING_DIALOG.contains(lastDialogOrMesbox)
+			&& baLootInProgress != null)
+		{
+				onInvChange(collectInvAndGroundItems(LootRecordType.EVENT, baLootInProgress));
+				baLootInProgress = null;
 		}
 	}
 
