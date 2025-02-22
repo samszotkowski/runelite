@@ -322,8 +322,8 @@ public class LootTrackerPlugin extends Plugin
 	private static final String IMPLING_CATCH_MESSAGE = "You manage to catch the impling and acquire some loot.";
 
 	// Barbarian Assault gambles
-	private static final List<String> BA_GAMBLES = List.of("Barbarian Assault Low Gamble", "Barbarian Assault Medium Gamble", "Barbarian Assault High Gamble");
-	private static final List<String> BA_PRECEDING_DIALOG = List.of("You've got...", "Hmmm, not bad, it's...", "You've won...");
+	private static final List<String> BA_GAMBLES = List.of("Barbarian Assault low gamble", "Barbarian Assault medium gamble", "Barbarian Assault high gamble");
+	private static final List<String> BA_PRECEDING_DIALOG = List.of("Commander Connad|You've got...", "Commander Connad|Hmmm, not bad, it's...", "Commander Connad|You've won...");
 
 	// Raids
 	private static final String CHAMBERS_OF_XERIC = "Chambers of Xeric";
@@ -1245,14 +1245,18 @@ public class LootTrackerPlugin extends Plugin
 			return;
 		}
 
-		baGambleInProgress = null;
 		Object[] args = event.getScriptEvent().getArguments();
 		int menuPosition = (int) args[3];
 		boolean enoughPoints = (int) args[4] == 1;
-		boolean enoughQueens = (int) args[5] == 1;
-		if (enoughPoints && enoughQueens && (menuPosition == 14 || menuPosition == 15 || menuPosition == 16))
+		int queenKillsRequired = (int) args[5];
+		int queenKills = (int) args[6];
+		if (enoughPoints && queenKills >= queenKillsRequired)
 		{
-			baGambleInProgress = BA_GAMBLES.get(menuPosition - 14);
+			baGambleInProgress = null;
+			if (menuPosition == 14 || menuPosition == 15 || menuPosition == 16)
+			{
+				baGambleInProgress = BA_GAMBLES.get(menuPosition - 14);
+			}
 		}
 	}
 
@@ -1383,8 +1387,8 @@ public class LootTrackerPlugin extends Plugin
 			&& lastDialogOrMesbox != null && BA_PRECEDING_DIALOG.contains(lastDialogOrMesbox)
 			&& baGambleInProgress != null)
 		{
-				onInvChange(collectInvAndGroundItems(LootRecordType.EVENT, baGambleInProgress));
-				baGambleInProgress = null;
+			onInvChange(collectInvAndGroundItems(LootRecordType.EVENT, baGambleInProgress));
+			baGambleInProgress = null;
 		}
 	}
 
