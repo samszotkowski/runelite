@@ -1247,13 +1247,12 @@ public class LootTrackerPlugin extends Plugin
 
 		Object[] args = event.getScriptEvent().getArguments();
 		int menuPosition = (int) args[3];
-		boolean enoughPoints = (int) args[4] == 1;
-		int queenKillsRequired = (int) args[5];
+		boolean enoughPointsAndWaves = (int) args[4] == 1;
 		int queenKills = (int) args[6];
-		if (enoughPoints && queenKills >= queenKillsRequired)
+		if (enoughPointsAndWaves)
 		{
 			baGambleInProgress = null;
-			if (menuPosition == 14 || menuPosition == 15 || menuPosition == 16)
+			if (menuPosition == 14 || menuPosition == 15 || (menuPosition == 16 && queenKills > 0))
 			{
 				baGambleInProgress = BA_GAMBLES.get(menuPosition - 14);
 			}
