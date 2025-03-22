@@ -319,6 +319,8 @@ public class LootTrackerPlugin extends Plugin
 		ItemID.LUCKY_IMPLING_JAR
 	);
 	private static final String IMPLING_CATCH_MESSAGE = "You manage to catch the impling and acquire some loot.";
+	private static final Pattern PORT_TASK_CRATE_PATTERN = Pattern.compile("You deliver the (crate of .*) and complete your courier task!");
+	private static final Pattern PORT_TASK_FINISHED_PATTERN = Pattern.compile("You have finished a port task: <col=.*>(.*)</col>");
 
 	// Raids
 	private static final String CHAMBERS_OF_XERIC = "Chambers of Xeric";
@@ -327,8 +329,6 @@ public class LootTrackerPlugin extends Plugin
 
 	private static final int FONT_OF_CONSUMPTION_REGION = 12106;
 	private static final String FONT_OF_CONSUMPTION_USE_MESSAGE = "You place the Unsired into the Font of Consumption...";
-
-	private static final String BA_HIGH_GAMBLE = "Barbarian Assault high gamble";
 
 	private static final Set<Character> VOWELS = ImmutableSet.of('a', 'e', 'i', 'o', 'u');
 
@@ -379,6 +379,8 @@ public class LootTrackerPlugin extends Plugin
 	private NavigationButton navButton;
 
 	private boolean chestLooted;
+	private String pendingCrate;
+	private String lastDialogOrMesbox;
 	private boolean lastLoadingIntoInstance;
 	private String lastPickpocketTarget;
 	private int lastNpcTypeTarget;
@@ -1005,7 +1007,7 @@ public class LootTrackerPlugin extends Plugin
 	{
 		var chatType = event.getType();
 		if (chatType != ChatMessageType.GAMEMESSAGE && chatType != ChatMessageType.SPAM
-			&& chatType != ChatMessageType.MESBOX)
+			&& chatType != ChatMessageType.MESBOX && chatType != ChatMessageType.DIALOG)
 		{
 			return;
 		}
@@ -1181,12 +1183,19 @@ public class LootTrackerPlugin extends Plugin
 			onInvChange(collectInvItems(LootRecordType.EVENT, "Unsired"));
 		}
 
-		if (regionID == BA_LOBBY_REGION && chatType == ChatMessageType.MESBOX)
+		final Matcher portTaskMatcher = PORT_TASK_FINISHED_PATTERN.matcher(message);
+		if (portTaskMatcher.matches() && pendingCrate != null)
 		{
-			if (message.contains("High level gamble count:"))
-			{
-				onInvChange(collectInvAndGroundItems(LootRecordType.EVENT, BA_HIGH_GAMBLE));
-			}
+			String portTask = portTaskMatcher.group(1);
+			onInvChange(collectInvAndGroundItems(LootRecordType.EVENT, pendingCrate, portTask));
+			log.info(String.format("Crate: %s", pendingCrate));
+			log.info(String.format("Port task: %s", portTask));
+			pendingCrate = null;
+		}
+
+		if (event.getType() == ChatMessageType.DIALOG || event.getType() == ChatMessageType.MESBOX)
+		{
+			lastDialogOrMesbox = message;
 		}
 	}
 
@@ -1353,6 +1362,16 @@ public class LootTrackerPlugin extends Plugin
 						addLoot(name, -1, LootRecordType.EVENT, null, invItems, cnt);
 					}
 				}));
+			}
+		}
+		else if (event.getMenuOption().equals("Continue") && lastDialogOrMesbox != null)
+		{
+			Matcher portTaskMatcher = PORT_TASK_CRATE_PATTERN.matcher(lastDialogOrMesbox);
+			if (portTaskMatcher.matches())
+			{
+				String portTaskCrate = portTaskMatcher.group(1);
+				pendingCrate = portTaskCrate.substring(0, 1).toUpperCase() + portTaskCrate.substring(1);
+//				onInvChange(collectInvAndGroundItems(LootRecordType.EVENT, pendingCrate));
 			}
 		}
 	}
