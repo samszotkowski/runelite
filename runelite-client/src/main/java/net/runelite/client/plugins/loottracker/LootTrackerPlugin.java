@@ -87,6 +87,7 @@ import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.ItemContainerChanged;
 import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.events.NpcDespawned;
+import net.runelite.api.events.OverheadTextChanged;
 import net.runelite.api.events.PostClientTick;
 import net.runelite.api.events.WidgetLoaded;
 import net.runelite.api.gameval.AnimationID;
@@ -149,6 +150,9 @@ public class LootTrackerPlugin extends Plugin
 	private static final int ARAXXOR_LAIR = 14489;
 	private static final int ROYAL_TITANS_REGION = 11669;
 	private static final int BA_LOBBY_REGION = 10039;
+
+	// Gnome restaurant reward token
+	private static final Pattern GNOME_DELIVERY_PATTERN = Pattern.compile("Here you go .*, your food delivery - still warm!");
 
 	// Herbiboar loot handling
 	@VisibleForTesting
@@ -1187,6 +1191,24 @@ public class LootTrackerPlugin extends Plugin
 			{
 				onInvChange(collectInvAndGroundItems(LootRecordType.EVENT, BA_HIGH_GAMBLE));
 			}
+		}
+	}
+
+	@Subscribe
+	public void onOverheadTextChanged(OverheadTextChanged event)
+	{
+		if (!(event.getActor() instanceof NPC))
+		{
+			return;
+		}
+
+		NPC npc = (NPC) event.getActor();
+		int npcId = npc.getId();
+
+        final Matcher matcher = GNOME_DELIVERY_PATTERN.matcher(event.getOverheadText());
+        if (npcId == NpcID.ALUFT_DELIVERY_MOUNTED_TERRORCHIC && matcher.matches())
+		{
+			onInvChange(collectInvAndGroundItems(LootRecordType.EVENT, "Reward token (Gnome Restaurant)"));
 		}
 	}
 
