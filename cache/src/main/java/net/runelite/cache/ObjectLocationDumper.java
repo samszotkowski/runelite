@@ -2,18 +2,24 @@ package net.runelite.cache;
 
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.cache.definitions.ObjectDefinition;
-import net.runelite.cache.fs.*;
+import net.runelite.cache.fs.Store;
 import net.runelite.cache.region.Location;
 import net.runelite.cache.region.Position;
 import net.runelite.cache.region.Region;
 import net.runelite.cache.region.RegionLoader;
 
-import com.google.gson.Gson;
 import net.runelite.cache.util.XteaKeyManager;
-import org.apache.commons.cli.*;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
 
-import java.io.*;
-import java.util.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.PrintWriter;
+import java.util.ArrayList;
 
 @Slf4j
 public class ObjectLocationDumper
@@ -40,7 +46,6 @@ public class ObjectLocationDumper
         final String cacheDirectory = cmd.getOptionValue("cachedir");
         final String outputDirectory = cmd.getOptionValue("outputdir");
 
-        Gson gson = new Gson();
         String cache = String.format("%s/cache", cacheDirectory);
         Store store = new Store(new File(cache));
         store.load();
@@ -65,8 +70,10 @@ public class ObjectLocationDumper
 
         ObjectDefinition od;
         Position position;
-        for (Region region : regionLoader.getRegions()) {
-            for (Location location : region.getLocations()) {
+        for (Region region : regionLoader.getRegions())
+        {
+            for (Location location : region.getLocations())
+            {
                 od = objectManager.getObject(location.getId());
                 position = location.getPosition();
                 sceneryLocations.add(String.format(
@@ -81,17 +88,26 @@ public class ObjectLocationDumper
         }
 
         String sceneryCsv = String.join("\n", sceneryLocations);
-        String filename = "scenery_locations.csv";
-        File outputfile = fileWithDirectoryAssurance(outputDirectory, filename);
+        File outputfile = fileWithDirectoryAssurance(outputDirectory);
         PrintWriter out = new PrintWriter(outputfile);
         out.write(sceneryCsv);
         out.close();
         log.info(outputfile.getAbsolutePath());
     }
 
-    private static File fileWithDirectoryAssurance(String directory, String filename) {
+    private static File fileWithDirectoryAssurance(String directory)
+    {
         File dir = new File(directory);
         if (!dir.exists()) dir.mkdirs();
-        return new File(directory + "/" + filename);
+
+        File file = new File(directory + "/scenery_locations.csv");
+
+        int i = 1;
+        while (file.exists())
+        {
+            file = new File(directory + String.format("/scenery_locations_%02d.csv", i));
+            i++;
+        }
+        return file;
     }
 }
