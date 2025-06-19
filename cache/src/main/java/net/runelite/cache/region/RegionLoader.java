@@ -96,17 +96,12 @@ public class RegionLoader
 			return null;
 		}
 
-		byte[] data = map.decompress(storage.loadArchive(map));
-
-		MapDefinition mapDef = new MapLoader().load(x, y, data);
-
 		Region region = new Region(i);
-		region.loadTerrain(mapDef);
 
 		int[] keys = keyProvider.getKey(i);
 		if (keys != null)
 		{
-			data = land.decompress(storage.loadArchive(land), keys);
+			byte[] data = land.decompress(storage.loadArchive(land), keys);
 			LocationsDefinition locDef = new LocationsLoader().load(x, y, data);
 			region.loadLocations(locDef);
 		}

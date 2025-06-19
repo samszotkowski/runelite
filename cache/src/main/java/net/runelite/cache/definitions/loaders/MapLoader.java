@@ -38,7 +38,6 @@ public class MapLoader
 		MapDefinition map = new MapDefinition();
 		map.setRegionX(regionX);
 		map.setRegionY(regionY);
-		loadTerrain(map, b);
 		return map;
 	}
 

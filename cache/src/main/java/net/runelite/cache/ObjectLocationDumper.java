@@ -62,8 +62,6 @@ public class ObjectLocationDumper
         regionLoader.loadRegions();
         ObjectManager objectManager = new ObjectManager(store);
         objectManager.load();
-        AreaManager areaManager = new AreaManager(store);
-        areaManager.load();
 
         ArrayList<String> sceneryLocations = new ArrayList<>();
         sceneryLocations.add("id,name,x,y,plane");
