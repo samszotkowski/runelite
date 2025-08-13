@@ -87,6 +87,7 @@ import net.runelite.api.events.WidgetLoaded;
 import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.gameval.InventoryID;
 import net.runelite.api.gameval.ItemID;
+import net.runelite.api.gameval.NpcID;
 import net.runelite.api.gameval.ObjectID;
 import net.runelite.api.gameval.SpriteID;
 import net.runelite.api.gameval.VarbitID;
@@ -693,13 +694,40 @@ public class LootTrackerPlugin extends Plugin
 	{
 		final NPCComposition npc = event.getComposition();
 		final Collection<ItemStack> items = event.getItems();
-		final String name = npc.getName();
+		final String name;
 		final int combat = npc.getCombatLevel();
 
 		if (ignorePickpocketLoot == client.getTickCount())
 		{
 			// server sends npc loot for pickpockets, ignore it
 			return;
+		}
+
+		switch (npc.getId())
+		{
+			case NpcID.CIVITAS_PARK_FISHINGSPOT_HMM:
+				name = "Fishing spot (Civitas illa Fortis)";
+				break;
+			case NpcID.STRANGLEWOOD_FISHINGSPOT_HMM:
+				name = "Fishing spot (The Stranglewood)";
+				break;
+			case NpcID.LOTR_SKELETON_LVL_21:
+			case NpcID.LOTR_SKELETON_LVL_22:
+			case NpcID.LOTR_SKELETON_LVL_25:
+				name = "Skeleton (Tarn's lair, low level)";
+				break;
+			case NpcID.LOTR_SKELETON_LVL_13:
+			case NpcID.LOTR_SKELETON_LVL_77:
+			case NpcID.LOTR_SKELETON_MINER1:
+			case NpcID.LOTR_SKELETON_POSSESED_1:
+				name = "Skeleton (Tarn's lair, mid level)";
+				break;
+			case NpcID.LOTR_SKELETON_LVL_45:
+			case NpcID.LOTR_SKELETON_POSSESED_2:
+				name = "Skeleton (Tarn's lair, high level)";
+				break;
+			default:
+				name = npc.getName();
 		}
 
 		addLoot(name, combat, LootRecordType.NPC, buildNpcMetadata(npc), items);
